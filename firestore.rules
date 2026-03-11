@@ -1,0 +1,24 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // User-Private Data: Only the authenticated user can read/write their own data
+    match /users/{userId}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Global Data: Public read, no write (Admin controlled via console for now)
+    match /skills/{skillId} {
+      allow read: if request.auth != null;
+    }
+    match /interviewQuestions/{questionId} {
+      allow read: if request.auth != null;
+    }
+    
+    // Legacy support for older top-level collection (optional, can be deprecated)
+    match /interviews/{interview} {
+      allow read, write: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null;
+    }
+  }
+}
