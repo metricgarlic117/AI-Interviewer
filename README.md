@@ -4,6 +4,12 @@ AlgoMock is a **Next.js** web application that simulates real-world technical in
 
 ---
 
+## 🌐 Live Demo
+
+**[https://interviewer-gamma-one.vercel.app/](https://interviewer-gamma-one.vercel.app/)**
+
+---
+
 ## ✨ Features
 
 | Feature | Description |
@@ -164,6 +170,12 @@ firebase deploy --only firestore:rules
 3. Commit your changes: `git commit -m 'Add your feature'`
 4. Push to the branch: `git push origin feature/your-feature`
 5. Open a Pull Request
+
+---
+
+## 🙏 Acknowledgements
+
+This project was developed with partial AI assistance from **[Claude Sonnet 4.6](https://www.anthropic.com/claude)**.
 
 ---
 
