@@ -1,7 +1,7 @@
 /** @type {import('jest').Config} */
 const customJestConfig = {
     testEnvironment: 'jest-environment-jsdom',
-    setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
+    setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
     moduleNameMapper: {
         '^@/(.*)$': '<rootDir>/$1',
         '^next/server$': '<rootDir>/__mocks__/next/server.js',
@@ -9,24 +9,19 @@ const customJestConfig = {
         '\\.(css|less|scss|sass)$': '<rootDir>/__mocks__/styleMock.js',
         '\\.(jpg|jpeg|png|gif|svg|webp)$': '<rootDir>/__mocks__/fileMock.js',
     },
+    testMatch: ['**/__tests__/**/*.test.{js,jsx}'],
     testPathIgnorePatterns: ['<rootDir>/.next/', '<rootDir>/node_modules/'],
     coverageProvider: 'v8',
     collectCoverageFrom: [
-        'services/**/*.ts',
-        'app/api/**/*.ts',
-        'contexts/**/*.tsx',
-        'components/**/*.tsx',
-        'types.ts',
-        '!**/*.d.ts',
+        'services/**/*.js',
+        'app/api/**/*.js',
+        'lib/**/*.js',
+        'contexts/**/*.jsx',
+        'components/**/*.jsx',
+        'types.js',
     ],
     transform: {
-        '^.+\\.(ts|tsx|js|jsx)$': ['ts-jest', {
-            tsconfig: {
-                jsx: 'react-jsx',
-                esModuleInterop: true,
-                allowSyntheticDefaultImports: true,
-            },
-        }],
+        '^.+\\.(js|jsx)$': ['babel-jest', { presets: ['next/babel'] }],
     },
     transformIgnorePatterns: [
         '/node_modules/(?!(firebase|@firebase|@google/genai)/)',

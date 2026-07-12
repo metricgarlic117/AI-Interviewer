@@ -27,13 +27,31 @@ AlgoMock is a **Next.js** web application that simulates real-world technical in
 ## 🛠️ Tech Stack
 
 - **Framework**: [Next.js 16](https://nextjs.org/) (App Router)
-- **Language**: TypeScript
+- **Language**: JavaScript (ES2022+, JSDoc-annotated)
 - **AI / ML**: Google Gemini (`@google/genai`) — Live multimodal API for voice + text
 - **Speech-to-Text Fallback**: [AssemblyAI](https://www.assemblyai.com/) — used in parallel with Gemini to guarantee transcription
-- **Backend / Database**: [Firebase](https://firebase.google.com/) — Firestore for sessions/resumes, Firebase Auth for users
+- **Backend / Database**: [Firebase](https://firebase.google.com/) — Firestore for sessions/resumes, Firebase Auth for users, Firebase Admin for server-side token verification
 - **PDF Processing**: `pdfjs-dist` — client-side PDF text extraction
 - **Styling**: Tailwind CSS
 - **Testing**: Jest + React Testing Library
+- **Linting**: ESLint (`eslint-config-next`)
+
+---
+
+## 🔐 Security Model
+
+Authentication is enforced **server-side**, not just in the UI:
+
+- **Firebase Auth** (email/password + Google sign-in) manages user identity in the browser.
+- **Every API route verifies a Firebase ID token** (`Authorization: Bearer <token>`) with the Firebase Admin SDK before doing any work. Client-side route guards are UX only — the API layer and Firestore rules are the real boundary.
+- **No provider secrets ever reach the browser**:
+  - Gemini Live sessions use single-use **ephemeral tokens** minted by `/api/gemini-live-token`.
+  - AssemblyAI streaming uses short-lived realtime tokens minted by `/api/assemblyai-token`.
+  - `GEMINI_API_KEY` and `ASSEMBLYAI_API_KEY` are server-only environment variables.
+- **Per-user rate limiting** on all API routes (in-memory fixed window; see `lib/server/rate-limit.js` — swap in a shared store like Upstash Redis when running more than one instance).
+- **Request validation and body-size caps** on every route.
+- **Security headers** (HSTS, nosniff, frame denial, restricted permissions) set globally in `next.config.js`.
+- **Firestore security rules** restrict each user's data to that user (`firestore.rules`).
 
 ---
 
@@ -51,7 +69,7 @@ AlgoMock is a **Next.js** web application that simulates real-world technical in
 
 ```bash
 git clone <repository-url>
-cd "final project by MTN"
+cd AI-Interviewer
 ```
 
 ### 2. Install dependencies
@@ -62,23 +80,18 @@ npm install
 
 ### 3. Configure environment variables
 
-Create a `.env.local` file in the project root:
-
-```env
-# Google Gemini
-GEMINI_API_KEY=your_gemini_api_key
-
-# AssemblyAI
-ASSEMBLYAI_API_KEY=your_assemblyai_api_key
-
-# Firebase (client-side)
-NEXT_PUBLIC_FIREBASE_API_KEY=your_firebase_api_key
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
+```bash
+cp .env.example .env.local
 ```
+
+Then fill in every value — see the comments in [`.env.example`](./.env.example) for where each one comes from. Highlights:
+
+| Variable | Scope | Purpose |
+|---|---|---|
+| `GEMINI_API_KEY` | server only | Gemini requests + ephemeral Live tokens |
+| `ASSEMBLYAI_API_KEY` | server only | Minting temporary realtime transcription tokens |
+| `FIREBASE_SERVICE_ACCOUNT_KEY` | server only | Verifying user ID tokens on API routes (raw or base64 JSON). Optional on Google Cloud, where Application Default Credentials are used |
+| `NEXT_PUBLIC_FIREBASE_*` | client | Firebase web app config (not secret) |
 
 ### 4. Run the development server
 
@@ -91,6 +104,26 @@ npm run dev
 Open [https://localhost:3000](https://localhost:3000) in your browser.
 
 > **Note:** On first run, your browser may warn about a self-signed certificate. Accept it to proceed.
+
+---
+
+## 📦 Production Deployment
+
+1. Set every variable from `.env.example` in your hosting provider (e.g. Vercel → Project Settings → Environment Variables). For `FIREBASE_SERVICE_ACCOUNT_KEY`, base64-encode the service-account JSON: `base64 -w0 service-account.json`.
+2. Deploy the Firestore rules: `firebase deploy --only firestore:rules`.
+3. Add your production domain to **Firebase Auth → Authorized domains**.
+4. Build and start:
+
+```bash
+npm run build
+npm start
+```
+
+### Production checklist / known limitations
+
+- The rate limiter is in-memory and therefore **per instance**. Multi-instance or serverless deployments should back `lib/server/rate-limit.js` with a shared store (Upstash Redis, Memorystore).
+- No `Content-Security-Policy` header is set yet. Roll one out in report-only mode first — it must allow Firebase/Google identity endpoints, Gemini and AssemblyAI websockets, and the Font Awesome CDN.
+- Consider Firebase App Check for an additional abuse-prevention layer on Firestore.
 
 ---
 
@@ -107,20 +140,30 @@ Open [https://localhost:3000](https://localhost:3000) in your browser.
 │   │   ├── result/[id]/     # Post-interview feedback report
 │   │   ├── session/[id]/    # Live interview session (voice)
 │   │   └── setup/           # Interview configuration wizard
-│   └── api/
-│       ├── analyze-resume/  # Resume analysis endpoint
-│       ├── assemblyai-token/ # AssemblyAI temp token endpoint
-│       ├── extract-text/    # PDF / image text extraction
+│   └── api/                 # All routes require a Firebase ID token
+│       ├── analyze-resume/    # Resume analysis
+│       ├── assemblyai-token/  # Temporary AssemblyAI realtime token
+│       ├── extract-text/      # Image text extraction
+│       ├── gemini-live-token/ # Single-use ephemeral Gemini Live token
 │       └── generate-feedback/ # Post-session feedback generation
+├── lib/
+│   └── server/              # Server-only: auth, rate limiting, API plumbing
+│       ├── api-handler.js   # Auth + rate limit + validation wrapper
+│       ├── auth.js          # Firebase ID token verification
+│       ├── firebase-admin.js
+│       ├── gemini-client.js
+│       └── rate-limit.js
 ├── components/              # Shared React components
 ├── contexts/                # React context providers
-├── services/
-│   ├── assemblyai.ts        # AssemblyAI streaming client
-│   ├── firebase.ts          # Firebase initialisation
-│   ├── gemini.ts            # Gemini API helpers
-│   └── userData.ts          # Firestore CRUD helpers
+├── services/                # Client-side service helpers
+│   ├── apiClient.js         # authedFetch — attaches the user's ID token
+│   ├── assemblyai.js        # AssemblyAI streaming client
+│   ├── firebase.js          # Firebase initialisation (env-driven)
+│   ├── gemini.js            # Gemini API helpers + Live client factory
+│   └── userData.js          # Firestore CRUD helpers
 ├── __tests__/               # Jest unit & integration tests
-└── types.ts                 # Shared TypeScript types
+├── types.js                 # Shared runtime constants + JSDoc typedefs
+└── firestore.rules          # Firestore security rules
 ```
 
 ---
@@ -136,16 +179,6 @@ npm run test:watch
 
 # With coverage report
 npm run test:coverage
-```
-
----
-
-## 🔐 Firestore Security Rules
-
-Security rules are defined in [`firestore.rules`](./firestore.rules). Deploy them with the Firebase CLI:
-
-```bash
-firebase deploy --only firestore:rules
 ```
 
 ---
@@ -175,7 +208,7 @@ firebase deploy --only firestore:rules
 
 ## 🙏 Acknowledgements
 
-This project was developed with partial AI assistance from **[Claude Sonnet 4.6](https://www.anthropic.com/claude)**.
+This project was developed with partial AI assistance from **[Claude](https://www.anthropic.com/claude)**.
 
 ---
 
