@@ -25,6 +25,9 @@ app.use(
     credentials: true,
   })
 );
+// Image OCR uploads need a larger body cap than everything else; this
+// parser must be registered before the global 1mb one so it wins.
+app.use('/api/v1/ai/extract-text', express.json({ limit: '12mb' }));
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(cookieParser());

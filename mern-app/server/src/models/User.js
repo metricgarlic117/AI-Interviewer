@@ -37,6 +37,25 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // Career-prep context derived from resume analyses; drives the
+    // personalized dashboard greeting and setup prefills.
+    prepContext: {
+      targetRole: { type: String, default: null },
+      seniorityLevel: { type: String, default: null },
+      lastUpdated: { type: Number, default: null },
+    },
+    // Current "recommended next step" card shown on the dashboard.
+    recommendation: {
+      type: {
+        type: String,
+        enum: ['analyze_resume', 'practice_interview', 'review_weakness', null],
+        default: null,
+      },
+      message: { type: String, default: null },
+      reason: { type: String, default: null },
+      targetAction: { type: String, default: null },
+      createdAt: { type: Number, default: null },
+    },
   },
   {
     timestamps: true,

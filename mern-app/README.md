@@ -8,8 +8,8 @@ Production-structured MERN rebuild of the AI Interviewer app: an Express 5 + Mon
 |---|---|
 | Root setup (workspaces, Docker Compose, CI, editorconfig) | ✅ |
 | Backend auth flow (register/login/refresh/logout, JWT + Redis) | ✅ |
-| Backend interview/resume domain features | 🔜 next |
-| Frontend (React/Vite/Tailwind/daisyUI) | 🔜 scaffolded workspace only |
+| Backend interview/resume/AI domain (Gemini feedback & analysis, token minting) | ✅ |
+| Frontend (React/Vite/Tailwind 4/daisyUI — all pages, live voice session) | ✅ |
 
 ## Architecture
 
@@ -39,8 +39,20 @@ The server follows a strict layered architecture (see folder docs in `server/src
 | POST | `/api/v1/auth/refresh` | cookie | rotates the pair |
 | POST | `/api/v1/auth/logout` | Bearer | blocklists access token, revokes refresh |
 | POST | `/api/v1/auth/logout-all` | Bearer | revokes every session |
-| GET | `/api/v1/users/me` | Bearer | current profile |
+| GET | `/api/v1/users/me` | Bearer | current profile (incl. prep context + recommendation) |
 | PATCH | `/api/v1/users/me` | Bearer | update name / avatar |
+| PATCH | `/api/v1/users/me/password` | Bearer | change password (revokes other sessions) |
+| POST | `/api/v1/interviews` | Bearer | create session from setup config |
+| GET | `/api/v1/interviews` | Bearer | recent sessions (dashboard) |
+| GET | `/api/v1/interviews/:id` | Bearer | session detail + transcript |
+| PATCH | `/api/v1/interviews/:id/persona` | Bearer | store generated interviewer persona |
+| POST | `/api/v1/interviews/:id/messages` | Bearer | append transcript message |
+| POST | `/api/v1/interviews/:id/feedback` | Bearer | generate + save Gemini scorecard |
+| POST | `/api/v1/resumes/analyze` | Bearer | Gemini resume-vs-JD analysis (persisted) |
+| GET | `/api/v1/resumes/latest` | Bearer | most recent resume + analysis |
+| POST | `/api/v1/ai/gemini-live-token` | Bearer | single-use ephemeral Live token |
+| POST | `/api/v1/ai/assemblyai-token` | Bearer | short-lived realtime STT token |
+| POST | `/api/v1/ai/extract-text` | Bearer | OCR a JD screenshot via Gemini Vision |
 
 Every success response is `{ success: true, message, data }`; every error is `{ success: false, message, errors }`.
 

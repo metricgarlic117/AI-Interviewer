@@ -40,6 +40,10 @@ const env = Object.freeze({
   REFRESH_TOKEN_SECRET: process.env.REFRESH_TOKEN_SECRET,
   ACCESS_TOKEN_TTL: process.env.ACCESS_TOKEN_TTL || '15m',
   REFRESH_TOKEN_TTL: process.env.REFRESH_TOKEN_TTL || '7d',
+  // AI providers — optional at boot so auth-only deployments still start;
+  // the AI routes return 503 when the relevant key is missing.
+  GEMINI_API_KEY: process.env.GEMINI_API_KEY || '',
+  ASSEMBLYAI_API_KEY: process.env.ASSEMBLYAI_API_KEY || '',
 });
 
 if (Number.isNaN(env.PORT)) {

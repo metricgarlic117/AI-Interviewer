@@ -12,3 +12,13 @@ export const updateMe = asyncHandler(async (req, res) => {
   const user = await userService.updateProfile(req.user.id, { name, avatarUrl });
   return new ApiResponse(200, { user }, 'Profile updated').send(res);
 });
+
+export const changePassword = asyncHandler(async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  await userService.changePassword(req.user.id, { currentPassword, newPassword });
+  return new ApiResponse(
+    200,
+    null,
+    'Password updated. Other sessions have been logged out.'
+  ).send(res);
+});
